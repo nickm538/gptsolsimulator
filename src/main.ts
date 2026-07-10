@@ -54,6 +54,7 @@ class AeroviaSimulator {
   private previousTimestamp = 0;
   private lastUiUpdate = 0;
   private crashTriggered = false;
+  private crashOverlayShown = false;
   private crashTimer = 0;
 
   constructor() {
@@ -123,7 +124,12 @@ class AeroviaSimulator {
     const livery = LIVERIES[setup.liveryIndex] ?? LIVERIES[0]!;
 
     this.configureRenderer(quality);
-    this.airport = buildAirport(this.scene, quality, setup.timeId);
+    this.airport = buildAirport(
+      this.scene,
+      quality,
+      setup.timeId,
+      weather,
+    );
     this.environment = new Environment(
       this.scene,
       weather,
@@ -161,6 +167,8 @@ class AeroviaSimulator {
       onGear: () => this.toggleGear(),
       onFlaps: (delta) => this.adjustFlaps(delta),
       onAutopilot: () => this.toggleAutopilot(),
+      onReverse: () => this.toggleReverse(),
+      onParkingBrake: () => this.toggleParkingBrake(),
       onInteract: () => this.advanceTutorial(),
     });
 
@@ -171,6 +179,7 @@ class AeroviaSimulator {
     this.paused = false;
     this.running = true;
     this.crashTriggered = false;
+    this.crashOverlayShown = false;
     this.crashTimer = 0;
     this.ui.showFlight(spec, setup);
     this.ui.setCameraMode("cockpit");
@@ -299,7 +308,8 @@ class AeroviaSimulator {
         this.cameraController?.addShake(2.4 * scale);
       }
       this.crashTimer += dt;
-      if (this.crashTimer >= 0.8) {
+      if (this.crashTimer >= 0.8 && !this.crashOverlayShown) {
+        this.crashOverlayShown = true;
         this.ui.showCrash(this.model.reasonForCrash ?? "AIRCRAFT DAMAGED", this.snapshot);
       }
     }
@@ -307,10 +317,12 @@ class AeroviaSimulator {
 
   private restartGate(): void {
     if (!this.model || !this.tutorial) return;
+    this.input?.reset();
     this.model.resetAtGate(this.setup?.readyToTaxi ?? false);
     this.tutorial.reset();
     this.snapshot = this.model.snapshot();
     this.crashTriggered = false;
+    this.crashOverlayShown = false;
     this.crashTimer = 0;
     this.paused = false;
     this.ui.hideCrash();
@@ -323,9 +335,12 @@ class AeroviaSimulator {
 
   private retryApproach(): void {
     if (!this.model || !this.tutorial) return;
+    this.input?.reset();
     this.model.resetOnApproach();
+    if (this.tutorial.active) this.tutorial.jumpTo("approach-config");
     this.snapshot = this.model.snapshot();
     this.crashTriggered = false;
+    this.crashOverlayShown = false;
     this.crashTimer = 0;
     this.paused = false;
     this.ui.hideCrash();
@@ -384,16 +399,20 @@ class AeroviaSimulator {
 
   private adjustFlaps(delta: number): void {
     if (!this.model) return;
-    if (delta > 0) {
-      this.model.controls.flaps =
-        this.model.controls.flaps >= 3 ? 0 : this.model.controls.flaps + 1;
-    } else {
-      this.model.controls.flaps = Math.max(0, this.model.controls.flaps - 1);
-    }
+    this.model.controls.flaps = Math.max(
+      0,
+      Math.min(3, this.model.controls.flaps + Math.sign(delta)),
+    );
   }
 
   private toggleGear(): void {
-    if (!this.model || this.model.aircraft.id === "cessna") return;
+    if (
+      !this.model ||
+      this.model.aircraft.id === "cessna" ||
+      this.snapshot?.grounded
+    ) {
+      return;
+    }
     this.model.controls.gearDown = !this.model.controls.gearDown;
   }
 

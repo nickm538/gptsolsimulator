@@ -1,9 +1,9 @@
 import {
   BoxGeometry,
+  BufferAttribute,
   BufferGeometry,
   CanvasTexture,
   CapsuleGeometry,
-  CircleGeometry,
   Color,
   ConeGeometry,
   CylinderGeometry,
@@ -40,9 +40,11 @@ export class AircraftView {
   private readonly flapSurfaces: Object3D[] = [];
   private readonly retractableGear: Group[] = [];
   private readonly navLightMeshes: Mesh[] = [];
+  private readonly exteriorObjects: Object3D[] = [];
   private readonly landingLight: PointLight;
   private gearExtension = 1;
   private flapAngle = 0;
+  private cockpitMode = false;
 
   constructor(
     scene: Scene,
@@ -56,11 +58,9 @@ export class AircraftView {
     this.build(livery, callsign);
 
     this.cockpitAnchor.position.set(...spec.cockpitPosition);
-    this.cockpitAnchor.rotation.y = Math.PI;
     this.root.add(this.cockpitAnchor);
 
     this.leftWingAnchor.position.set(-spec.spanM * 0.42, 0.2, 0);
-    this.leftWingAnchor.rotation.y = Math.PI;
     this.root.add(this.leftWingAnchor);
 
     this.landingLight = new PointLight(0xf4f5dc, 0, spec.id === "max9" ? 145 : 80, 2);
@@ -73,6 +73,11 @@ export class AircraftView {
         object.receiveShadow = true;
       }
     });
+  }
+
+  setCockpitMode(enabled: boolean): void {
+    this.cockpitMode = enabled;
+    for (const object of this.exteriorObjects) object.visible = !enabled;
   }
 
   update(
@@ -104,7 +109,9 @@ export class AircraftView {
     }
 
     const showNav = systems.navLights && systems.battery;
-    for (const light of this.navLightMeshes) light.visible = showNav;
+    for (const light of this.navLightMeshes) {
+      light.visible = showNav && !this.cockpitMode;
+    }
     this.landingLight.intensity =
       systems.landingLights && systems.battery
         ? this.spec.id === "max9"
@@ -164,8 +171,9 @@ export class AircraftView {
       this.buildJet(shell, accent, dark, glass);
     }
     this.addRegistration(callsign, livery);
-    this.addCockpitInterior(dark);
     this.addNavigationLights();
+    this.exteriorObjects.push(...this.root.children);
+    this.addCockpitInterior(dark);
   }
 
   private buildCessna(
@@ -479,6 +487,8 @@ export class AircraftView {
 
   private addCockpitInterior(dark: MeshStandardMaterial): void {
     const [x, y, z] = this.spec.cockpitPosition;
+    const panelDistance = this.spec.id === "max9" ? 1.75 : 0.85;
+    const panelZ = z - panelDistance;
     const panel = new Mesh(
       new BoxGeometry(
         this.spec.id === "max9" ? 2.55 : this.spec.id === "learjet" ? 1.35 : 1.05,
@@ -487,7 +497,7 @@ export class AircraftView {
       ),
       dark,
     );
-    panel.position.set(x, y - 0.64, z - (this.spec.id === "max9" ? 1.75 : 0.85));
+    panel.position.set(x, y - 0.64, panelZ);
     panel.rotation.x = -0.12;
     this.root.add(panel);
 
@@ -501,12 +511,11 @@ export class AircraftView {
         screenMaterial,
       );
       screen.position.set(
-        x + side * (this.spec.id === "max9" ? 0.55 : 0.31),
-        y - 0.52,
-        z - (this.spec.id === "max9" ? 1.96 : 1.06),
+        side * (this.spec.id === "max9" ? 0.55 : 0.31),
+        0.12,
+        0.205,
       );
-      screen.rotation.y = Math.PI;
-      this.root.add(screen);
+      panel.add(screen);
     }
 
     const yoke = new Group();
@@ -594,7 +603,10 @@ function makeWingGeometry(
     indices.push(i, i + 6, next, next, i + 6, next + 6);
   }
   const geometry = new BufferGeometry();
-  geometry.setAttribute("position", new Float32Array(vertices), 3);
+  geometry.setAttribute(
+    "position",
+    new BufferAttribute(new Float32Array(vertices), 3),
+  );
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   return geometry;
@@ -624,7 +636,7 @@ function makeFinGeometry(
     0, 5, 3,
   ];
   const geometry = new BufferGeometry();
-  geometry.setAttribute("position", vertices, 3);
+  geometry.setAttribute("position", new BufferAttribute(vertices, 3));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   return geometry;

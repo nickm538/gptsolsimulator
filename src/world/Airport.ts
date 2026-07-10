@@ -22,8 +22,8 @@ import {
   Vector3,
 } from "three";
 import { AIRPORT } from "../data";
-import { seededRandom, terrainHeight } from "../sim/math";
-import type { QualityId, TimeId } from "../types";
+import { clamp, seededRandom, terrainHeight } from "../sim/math";
+import type { QualityId, TimeId, WeatherSpec } from "../types";
 
 interface Vehicle {
   root: Group;
@@ -68,6 +68,7 @@ export function buildAirport(
   scene: Scene,
   quality: QualityId,
   time: TimeId,
+  weather: WeatherSpec,
 ): AirportWorld {
   const root = new Group();
   root.name = "Aurelia International Airport";
@@ -81,7 +82,7 @@ export function buildAirport(
   createCity(root, quality, time);
   const vehicles = createVehicles(root);
   const papi = createPapi(root);
-  const windsock = createWindsock(root);
+  const windsock = createWindsock(root, weather);
 
   const serviceLoop = [
     new Vector3(-770, 0.6, -1_500),
@@ -113,8 +114,17 @@ export function buildAirport(
         material.color.setHex(glideAngle < threshold ? 0xff2d2d : 0xf5f1df);
       });
 
-      windsock.rotation.z = Math.sin(elapsed * 2.8) * 0.07;
-      windsock.rotation.y = -Math.PI * 0.45;
+      const fabric = windsock.getObjectByName("windsock-fabric");
+      if (fabric) {
+        const extension = clamp(weather.windKts / 18, 0.18, 1);
+        const droop = (1 - extension) * 0.58;
+        const flutter =
+          (0.012 + weather.gustKts * 0.0045) *
+          Math.sin(elapsed * (1.8 + weather.windKts * 0.09));
+        fabric.scale.y = 0.45 + extension * 0.55;
+        fabric.rotation.z =
+          -Math.PI / 2 - droop + flutter;
+      }
     },
     dispose(): void {
       scene.remove(root);
@@ -617,7 +627,7 @@ function createPapi(root: Group): Mesh[] {
   return lights;
 }
 
-function createWindsock(root: Group): Group {
+function createWindsock(root: Group, weather: WeatherSpec): Group {
   const group = new Group();
   const pole = new Mesh(
     new CylinderGeometry(0.22, 0.3, 12, 8),
@@ -633,10 +643,14 @@ function createWindsock(root: Group): Group {
       roughness: 0.85,
     }),
   );
+  sock.name = "windsock-fabric";
   sock.rotation.z = -Math.PI / 2;
   sock.position.set(3.3, 11.2, 0);
   group.add(sock);
   group.position.set(-165, 0, 1_720);
+  const downwindHeading =
+    ((weather.windDirectionDeg + 180) * Math.PI) / 180;
+  group.rotation.y = Math.PI / 2 - downwindHeading;
   root.add(group);
   return group;
 }

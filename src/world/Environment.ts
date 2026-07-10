@@ -11,7 +11,6 @@ import {
   HemisphereLight,
   LinearFilter,
   Mesh,
-  MeshBasicMaterial,
   PerspectiveCamera,
   Points,
   PointsMaterial,

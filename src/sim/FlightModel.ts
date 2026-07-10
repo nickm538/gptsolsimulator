@@ -1,5 +1,4 @@
 import {
-  Euler,
   Matrix4,
   Quaternion,
   Vector3,
@@ -96,6 +95,7 @@ export class FlightModel {
   private loadFactor = 1;
   private engineStartTimer = 0;
   private overspeedTimer = 0;
+  private transientWarningTimer = 0;
   private gForce = 1;
   private previousVerticalVelocity = 0;
   private landingReport: LandingReport | null = null;
@@ -143,6 +143,7 @@ export class FlightModel {
     this.stallRatio = 0;
     this.engineStartTimer = 0;
     this.overspeedTimer = 0;
+    this.transientWarningTimer = 0;
     this.previousVerticalVelocity = 0;
     this.landingReport = null;
     this.crashReason = null;
@@ -175,20 +176,74 @@ export class FlightModel {
 
   resetOnApproach(): void {
     const approachSpeed = this.spec.approachKts * KTS_TO_MPS;
-    this.position.set(0, 205 + this.spec.gearHeightM, 4_100);
-    this.velocity.set(0, -3.2, -approachSpeed);
+    const glideAngle = 3 * DEG2RAD;
+    const distanceFromThreshold = 3_800;
+    const glideHeight = Math.tan(glideAngle) * distanceFromThreshold;
+    const mass = this.getMassKg();
+    const rho = 1.225 * Math.exp(-glideHeight / 8_500);
+    const dynamicPressure = 0.5 * rho * approachSpeed * approachSpeed;
+    const clRequired =
+      (mass * GRAVITY * Math.cos(glideAngle)) /
+      (dynamicPressure * this.spec.wingArea);
+    const alphaTrim = clamp(
+      (clRequired - (this.spec.cl0 + this.spec.flapLift)) /
+        this.spec.clAlpha,
+      -4 * DEG2RAD,
+      8 * DEG2RAD,
+    );
+    const cd =
+      this.spec.cd0 +
+      this.spec.inducedDrag * clRequired * clRequired +
+      this.spec.flapDrag +
+      (this.spec.id === "cessna" ? 0 : this.spec.gearDrag);
+    const drag = dynamicPressure * this.spec.wingArea * cd;
+    const mach = approachSpeed / 340;
+    const availableThrust =
+      this.spec.maxThrustN *
+      Math.pow(rho / 1.225, this.spec.engineKind === "piston" ? 0.8 : 0.7) *
+      clamp(1 - mach * 0.3, 0.65, 1);
+    const trimThrottle = clamp(
+      (drag - mass * GRAVITY * Math.sin(glideAngle)) /
+        Math.max(1, availableThrust),
+      0.08,
+      1,
+    );
+    this.position.set(
+      0,
+      glideHeight + this.spec.gearHeightM,
+      RUNWAY_HALF_LENGTH + distanceFromThreshold,
+    );
+    this.velocity.set(
+      0,
+      -approachSpeed * Math.tan(glideAngle),
+      -approachSpeed,
+    );
     this.yaw = 0;
-    this.pitch = 3 * DEG2RAD;
+    this.pitch = -glideAngle + alphaTrim;
     this.roll = 0;
     this.pitchRate = 0;
     this.rollRate = 0;
     this.yawRate = 0;
     this.grounded = false;
     this.phase = "approach";
+    this.aoa = alphaTrim;
+    this.liftN = mass * GRAVITY * Math.cos(glideAngle);
+    this.stallRatio = 0;
+    this.loadFactor = Math.cos(glideAngle);
+    this.gForce = 1;
+    this.previousVerticalVelocity = this.velocity.y;
+    this.distanceTravelledM = 0;
+    this.engineStartTimer = 10;
+    this.overspeedTimer = 0;
     this.crashReason = null;
     this.landingReport = null;
     this.landedThisFlight = false;
-    this.controls.throttle = this.spec.engineKind === "piston" ? 0.48 : 0.42;
+    this.transientWarningTimer = 0;
+    this.controls.pitch = 0;
+    this.controls.roll = 0;
+    this.controls.yaw = 0;
+    this.controls.throttle = trimThrottle;
+    this.controls.brake = 0;
     this.controls.parkingBrake = false;
     this.controls.flaps = 3;
     this.controls.gearDown = true;
@@ -202,6 +257,9 @@ export class FlightModel {
     this.systems.enginesRunning = true;
     this.systems.engineSpool = this.controls.throttle;
     this.systems.autopilot = false;
+    this.systems.apHeadingDeg = 0;
+    this.systems.apAltitudeFt =
+      Math.round(this.getAltitudeFt() / 100) * 100;
     this.systems.masterWarning = null;
     this.updateOrientation();
   }
@@ -219,6 +277,7 @@ export class FlightModel {
       this.getAirspeedKts() < this.spec.approachKts * 0.8
     ) {
       this.systems.masterWarning = "AUTOPILOT UNAVAILABLE";
+      this.transientWarningTimer = 3;
       return false;
     }
     this.systems.autopilot = !this.systems.autopilot;
@@ -254,6 +313,9 @@ export class FlightModel {
       return this.snapshot();
     }
 
+    if (this.grounded && this.spec.id !== "cessna") {
+      this.controls.gearDown = true;
+    }
     this.updateSystems(dt);
     this.updateOrientation();
     this.getBasis(tempForward, tempRight, tempUp);
@@ -610,6 +672,13 @@ export class FlightModel {
       ? this.spec.gearHeightM
       : this.spec.gearHeightM * 0.22;
     if (this.position.y > floor + gearClearance) return;
+    if (this.velocity.y > 0.05) {
+      // The first airborne frame begins at fully extended strut height. Let an
+      // upward-moving aircraft unload the gear instead of counting it as an
+      // immediate touchdown.
+      this.position.y = floor + gearClearance + 0.015;
+      return;
+    }
 
     const touchdownSink = Math.max(0, -this.previousVerticalVelocity);
     const bankDeg = Math.abs(this.roll * RAD2DEG);
@@ -635,6 +704,7 @@ export class FlightModel {
       this.velocity.y = touchdownSink * 0.18;
       this.pitchRate *= 0.45;
       this.systems.masterWarning = "HARD LANDING";
+      this.transientWarningTimer = 4;
     } else {
       this.velocity.y = 0;
       this.grounded = true;
@@ -682,6 +752,10 @@ export class FlightModel {
   }
 
   private updateWarnings(dt: number, mach: number): void {
+    this.transientWarningTimer = Math.max(
+      0,
+      this.transientWarningTimer - dt,
+    );
     const airspeed = this.getAirspeedKts();
     const overspeed = airspeed > this.spec.maxKts || mach > 0.84;
     this.overspeedTimer = overspeed
@@ -704,10 +778,7 @@ export class FlightModel {
       this.velocity.y < -1
     ) {
       this.systems.masterWarning = "TOO LOW · GEAR";
-    } else if (
-      this.systems.masterWarning !== "HARD LANDING" &&
-      this.systems.masterWarning !== "AUTOPILOT UNAVAILABLE"
-    ) {
+    } else if (this.transientWarningTimer <= 0) {
       this.systems.masterWarning = null;
     }
   }

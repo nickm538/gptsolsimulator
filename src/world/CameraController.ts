@@ -30,7 +30,7 @@ export class CameraController {
   private lastPointer = new Vector2();
   private lookYaw = 0;
   private lookPitch = -0.03;
-  private orbitAzimuth = Math.PI * 0.72;
+  private orbitAzimuth = 0;
   private orbitElevation = 0.22;
   private orbitDistance = 34;
   private shake = 0;
@@ -52,6 +52,7 @@ export class CameraController {
 
   setAircraft(aircraft: AircraftView): void {
     this.aircraft = aircraft;
+    this.aircraft.setCockpitMode(this.mode === "cockpit");
   }
 
   setEnabled(enabled: boolean): void {
@@ -61,6 +62,7 @@ export class CameraController {
 
   setMode(mode: CameraMode): void {
     this.mode = mode;
+    this.aircraft.setCockpitMode(mode === "cockpit");
     this.camera.near = mode === "cockpit" ? 0.025 : 0.15;
     this.camera.updateProjectionMatrix();
   }
@@ -78,7 +80,7 @@ export class CameraController {
   resetLook(): void {
     this.lookYaw = 0;
     this.lookPitch = -0.03;
-    this.orbitAzimuth = Math.PI * 0.72;
+    this.orbitAzimuth = 0;
     this.orbitElevation = 0.22;
   }
 
@@ -106,9 +108,13 @@ export class CameraController {
               : 24;
         worldOffset
           .set(
-            Math.sin(this.orbitAzimuth) * distance * 0.22,
-            5.5 + distance * 0.18,
-            distance,
+            Math.sin(this.orbitAzimuth) *
+              Math.cos(this.orbitElevation) *
+              distance,
+            3.5 + Math.sin(this.orbitElevation) * distance,
+            Math.cos(this.orbitAzimuth) *
+              Math.cos(this.orbitElevation) *
+              distance,
           )
           .applyQuaternion(root.quaternion);
         targetPosition.copy(aircraftPosition).add(worldOffset);
@@ -138,8 +144,10 @@ export class CameraController {
       case "wing": {
         this.aircraft.leftWingAnchor.getWorldPosition(anchorPosition);
         this.aircraft.leftWingAnchor.getWorldQuaternion(anchorQuaternion);
+        lookEuler.set(this.lookPitch, this.lookYaw, 0);
+        lookQuaternion.setFromEuler(lookEuler);
         this.camera.position.copy(anchorPosition);
-        this.camera.quaternion.copy(anchorQuaternion);
+        this.camera.quaternion.copy(anchorQuaternion).multiply(lookQuaternion);
         break;
       }
       case "tower": {
@@ -168,7 +176,7 @@ export class CameraController {
   }
 
   private readonly onPointerDown = (event: PointerEvent): void => {
-    if (!this.enabled || event.button !== 0) return;
+    if (!this.enabled || event.button !== 0 || this.mode === "tower") return;
     this.dragging = true;
     this.pointerId = event.pointerId;
     this.lastPointer.set(event.clientX, event.clientY);

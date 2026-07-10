@@ -384,7 +384,7 @@
               </div>
               <div class="vertical-speed"><i id="vs-indicator"></i><b id="pfd-vs">0</b></div>
               <div class="heading-tape">
-                <span>33</span><span>34</span><b id="pfd-heading">360</b><span>01</span><span>02</span>
+                <span id="heading-left-two">34</span><span id="heading-left-one">35</span><b id="pfd-heading">360</b><span id="heading-right-one">01</span><span id="heading-right-two">02</span>
               </div>
               <div class="flight-mode-annunciator">
                 <b id="fma-mode">MANUAL</b>
@@ -470,6 +470,19 @@
         </section>
 
         <section id="mobile-controls" class="mobile-controls">
+          <div class="mobile-system-strip" aria-label="Mobile aircraft systems">
+            <button data-mobile-system="battery" type="button">BAT</button>
+            <button data-mobile-system="avionics" type="button">AV</button>
+            <button data-mobile-system="beacon" type="button">BCN</button>
+            <button data-mobile-system="engineMaster" type="button">ENG</button>
+            <button data-mobile-system="navLights" type="button">NAV</button>
+            <button data-mobile-system="landingLights" type="button">LND</button>
+            <button id="mobile-parking-brake" type="button">PARK</button>
+          </div>
+          <label class="mobile-throttle">
+            <span>THR <b id="mobile-throttle-readout">0%</b></span>
+            <input id="mobile-throttle-input" type="range" min="0" max="100" value="0" aria-label="Mobile throttle" />
+          </label>
           <div id="touch-stick" class="touch-stick">
             <span class="stick-ring"></span><i id="touch-knob"></i>
             <small>PITCH / ROLL</small>
@@ -481,8 +494,10 @@
           </div>
           <div class="mobile-actions">
             <button id="mobile-brake" type="button">BRAKE</button>
-            <button id="mobile-flaps" type="button">FLAPS</button>
+            <button id="mobile-flaps-down" type="button">FLAP+</button>
+            <button id="mobile-flaps-up" type="button">FLAP−</button>
             <button id="mobile-gear" type="button">GEAR</button>
+            <button id="mobile-reverse" type="button">REV</button>
             <button id="mobile-camera" type="button">VIEW</button>
           </div>
         </section>

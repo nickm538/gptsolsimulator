@@ -62,6 +62,12 @@ export class TutorialDirector {
     this.index = 0;
     this.completionTime = 0;
   }
+
+  jumpTo(id: string): void {
+    const target = this.steps.findIndex((step) => step.id === id);
+    if (target >= 0) this.index = target;
+    this.completionTime = 0;
+  }
 }
 
 function buildSteps(spec: AircraftSpec): TutorialStep[] {
@@ -81,7 +87,8 @@ function buildSteps(spec: AircraftSpec): TutorialStep[] {
       title: "Power the aircraft",
       body: "Set the BAT switch ON. This energizes the main electrical bus.",
       hint: "The BAT switch is in the SYSTEMS bank along the bottom flight deck.",
-      target: '[data-system="battery"]',
+      target:
+        '[data-system="battery"], [data-mobile-system="battery"]',
       complete: (_snapshot, _controls, systems) => systems.battery,
     },
     {
@@ -90,7 +97,8 @@ function buildSteps(spec: AircraftSpec): TutorialStep[] {
       title: "Bring displays online",
       body: "Switch AVIONICS ON and confirm the primary flight display illuminates.",
       hint: "Look for the second switch in the SYSTEMS bank.",
-      target: '[data-system="avionics"]',
+      target:
+        '[data-system="avionics"], [data-mobile-system="avionics"]',
       complete: (_snapshot, _controls, systems) => systems.avionics,
     },
     {
@@ -100,7 +108,8 @@ function buildSteps(spec: AircraftSpec): TutorialStep[] {
       body:
         "Set BEACON first, then engage ENGINE. Allow the spool indication to stabilize.",
       hint: "BEACON is under exterior lights. ENGINE is the third SYSTEMS switch.",
-      target: '[data-system="engineMaster"]',
+      target:
+        '[data-system="engineMaster"], [data-mobile-system="engineMaster"]',
       complete: (_snapshot, _controls, systems) =>
         systems.beacon && systems.enginesRunning,
     },
@@ -110,7 +119,8 @@ function buildSteps(spec: AircraftSpec): TutorialStep[] {
       title: "Make the aircraft visible",
       body: "Set NAV lights ON. Use landing lights when entering the runway.",
       hint: "NAV is the center switch in the EXTERIOR LIGHTS bank.",
-      target: '[data-system="navLights"]',
+      target:
+        '[data-system="navLights"], [data-mobile-system="navLights"]',
       complete: (_snapshot, _controls, systems) => systems.navLights,
     },
     {
@@ -120,7 +130,7 @@ function buildSteps(spec: AircraftSpec): TutorialStep[] {
       body:
         "Release PARK, ease throttle to 12–18%, and steer with Q / E or the rudder buttons.",
       hint: "Tap the PARK lever. Keep taxi speed below 20 kt and use brakes to regulate speed.",
-      target: "#parking-brake-button",
+      target: "#parking-brake-button, #mobile-parking-brake",
       complete: (_snapshot, controls) => !controls.parkingBrake,
     },
     {
@@ -141,12 +151,14 @@ function buildSteps(spec: AircraftSpec): TutorialStep[] {
       body:
         "Set takeoff flaps, landing lights ON, and stop at the paired yellow hold-short lines.",
       hint: "Use one notch of flaps. Runway 36L begins at the south end of the field.",
-      target: "#flaps-button",
+      target: "#flaps-button, #mobile-flaps-down",
       complete: (snapshot, controls, systems) =>
         controls.flaps >= 1 &&
         systems.landingLights &&
         Math.abs(snapshot.position.x) < 155 &&
-        snapshot.position.z > 1_420,
+        snapshot.position.z > 1_420 &&
+        snapshot.groundSpeedKts < 2.5 &&
+        (controls.brake > 0.35 || controls.parkingBrake),
     },
     {
       id: "line-up",
@@ -165,7 +177,7 @@ function buildSteps(spec: AircraftSpec): TutorialStep[] {
       title: "Set takeoff power",
       body: `Hold centerline and advance throttle above 90%. Rotate smoothly at ${spec.rotateKts} kt.`,
       hint: "Hold SHIFT or drag the throttle. Use gentle rudder corrections as speed builds.",
-      target: "#throttle-input",
+      target: "#throttle-input, #mobile-throttle-input",
       complete: (snapshot, controls) =>
         snapshot.onRunway && controls.throttle > 0.88 && snapshot.airspeedKts > 20,
     },
@@ -190,7 +202,10 @@ function buildSteps(spec: AircraftSpec): TutorialStep[] {
         spec.id === "cessna"
           ? "The Skyhawk has fixed gear. Tap FLAPS until the indication reads UP."
           : "Tap G for gear, then use Shift+F to retract flaps.",
-      target: spec.id === "cessna" ? "#flaps-button" : "#gear-button",
+      target:
+        spec.id === "cessna"
+          ? "#flaps-button, #mobile-flaps-up"
+          : "#gear-button, #mobile-gear",
       complete: (snapshot, controls) =>
         snapshot.radioAltitudeFt > 130 &&
         controls.flaps === 0 &&
@@ -205,6 +220,68 @@ function buildSteps(spec: AircraftSpec): TutorialStep[] {
       hint: "Pitch controls airspeed; power controls climb. Try autopilot P after leveling off.",
       complete: (snapshot) =>
         snapshot.altitudeFt > AIRPORT.elevationFt + 1_000,
+    },
+    {
+      id: "return",
+      eyebrow: "LESSON 14 · RETURN",
+      title: "Set up for runway 36L",
+      body:
+        "Fly a left traffic pattern or pause and choose Load Final Approach for a guided three-degree intercept.",
+      hint:
+        "Press Escape, choose Load Final Approach, then use the PAPI and runway centerline.",
+      target: "#pause-button",
+      complete: (snapshot) => snapshot.phase === "approach",
+    },
+    {
+      id: "approach-config",
+      eyebrow: "LESSON 15 · APPROACH",
+      title: "Configure for landing",
+      body:
+        "Set landing gear DOWN, full landing flaps, landing lights ON, and hold approach speed.",
+      hint: `Target about ${spec.approachKts} kt. Use small pitch corrections and steady power.`,
+      target: "#gear-button, #mobile-gear",
+      complete: (snapshot, controls, systems) =>
+        snapshot.phase === "approach" &&
+        controls.gearDown &&
+        controls.flaps === 3 &&
+        systems.landingLights,
+    },
+    {
+      id: "stabilized-approach",
+      eyebrow: "LESSON 16 · FINAL",
+      title: "Stabilize the final",
+      body:
+        "Keep the runway centered and hold two white / two red PAPI lights. Make small, patient corrections.",
+      hint:
+        "Pitch trims speed, power adjusts the glidepath. Avoid chasing the instruments.",
+      complete: (snapshot) =>
+        snapshot.phase === "approach" &&
+        snapshot.radioAltitudeFt < 700 &&
+        Math.abs(snapshot.position.x) < 45 &&
+        (snapshot.headingDeg < 12 || snapshot.headingDeg > 348) &&
+        Math.abs(snapshot.airspeedKts - spec.approachKts) < 25,
+    },
+    {
+      id: "flare",
+      eyebrow: "LESSON 17 · LANDING",
+      title: "Flare and touch down",
+      body:
+        "Near 20 feet, ease the nose up and reduce power. Touch the main gear first with wings level.",
+      hint:
+        "Look toward the far runway end. A gentle flare is only a few degrees of pitch.",
+      complete: (snapshot) => snapshot.phase === "rollout",
+    },
+    {
+      id: "rollout",
+      eyebrow: "LESSON 18 · ROLLOUT",
+      title: "Decelerate under control",
+      body:
+        "Lower the nose, hold centerline, apply wheel brakes, and use reverse thrust on jets.",
+      hint:
+        "Hold Space or BRAKE. Jet pilots can arm reverse with R or the REV button.",
+      target: "#reverse-button, #mobile-reverse, #mobile-brake",
+      complete: (snapshot) =>
+        snapshot.phase === "rollout" && snapshot.groundSpeedKts < 20,
     },
     {
       id: "complete",

@@ -43,7 +43,7 @@ export class Interface {
   private mapOpen = false;
   private hintOpen = false;
   private lastTutorialIndex = -1;
-  private highlightedTarget: Element | null = null;
+  private highlightedTargets: Element[] = [];
   private currentSpec = AIRCRAFT.cessna;
   private snapshot: FlightSnapshot | null = null;
 
@@ -135,6 +135,10 @@ export class Interface {
     element("pfd-altitude").textContent = formatAltitude(snapshot.altitudeFt);
     element("pfd-vs").textContent = `${Math.round(snapshot.verticalSpeedFpm / 100)}`;
     element("pfd-heading").textContent = formatHeading(snapshot.headingDeg);
+    element("heading-left-two").textContent = headingTick(snapshot.headingDeg - 20);
+    element("heading-left-one").textContent = headingTick(snapshot.headingDeg - 10);
+    element("heading-right-one").textContent = headingTick(snapshot.headingDeg + 10);
+    element("heading-right-two").textContent = headingTick(snapshot.headingDeg + 20);
     element("fma-mode").textContent = systems.autopilot ? "AP CMD" : "MANUAL";
     element("fma-altitude").textContent = systems.autopilot
       ? `ALT ${Math.round(systems.apAltitudeFt)}`
@@ -160,21 +164,34 @@ export class Interface {
     element("oil-pressure").textContent = systems.enginesRunning
       ? `${Math.round(28 + n1 * 0.54)}`
       : "0";
-    element<SVGPathElement>("n1-arc").style.strokeDashoffset = `${126 - n1 * 1.26}`;
+    const n1Arc = document.getElementById("n1-arc") as unknown as SVGPathElement;
+    n1Arc.style.strokeDashoffset = `${126 - n1 * 1.26}`;
 
     element<HTMLInputElement>("throttle-input").value = `${Math.round(
       controls.throttle * 100,
     )}`;
     element("throttle-readout").textContent = `${Math.round(controls.throttle * 100)}%`;
+    element<HTMLInputElement>("mobile-throttle-input").value = `${Math.round(
+      controls.throttle * 100,
+    )}`;
+    element("mobile-throttle-readout").textContent =
+      `${Math.round(controls.throttle * 100)}%`;
     element("flaps-value").textContent =
       controls.flaps === 0 ? "UP" : `${controls.flaps}`;
     element("gear-value").textContent =
       this.currentSpec.id === "cessna" ? "FIXED" : controls.gearDown ? "DOWN" : "UP";
     element("reverse-value").textContent = controls.reverse ? "ARM" : "OFF";
     element("parking-brake-button").classList.toggle("is-active", controls.parkingBrake);
+    element("mobile-parking-brake").classList.toggle(
+      "is-active",
+      controls.parkingBrake,
+    );
     element("flaps-button").classList.toggle("is-active", controls.flaps > 0);
+    element("mobile-flaps-down").classList.toggle("is-active", controls.flaps > 0);
     element("gear-button").classList.toggle("is-active", controls.gearDown);
+    element("mobile-gear").classList.toggle("is-active", controls.gearDown);
     element("reverse-button").classList.toggle("is-active", controls.reverse);
+    element("mobile-reverse").classList.toggle("is-active", controls.reverse);
     element("autopilot-button").classList.toggle("is-active", systems.autopilot);
     element("autopilot-button").querySelector("b")!.textContent = systems.autopilot
       ? "CMD"
@@ -188,6 +205,10 @@ export class Interface {
       button.classList.toggle("is-active", value);
       const state = button.querySelector("small");
       if (state) state.textContent = value ? "ON" : "OFF";
+    }
+    for (const button of document.querySelectorAll<HTMLElement>("[data-mobile-system]")) {
+      const system = button.dataset.mobileSystem as keyof AircraftSystems;
+      button.classList.toggle("is-active", Boolean(systems[system]));
     }
 
     const warning = systems.masterWarning;
@@ -331,19 +352,50 @@ export class Interface {
         this.actions.toggleSystem(button.dataset.system as keyof AircraftSystems);
       });
     }
+    for (const button of document.querySelectorAll<HTMLButtonElement>(
+      "[data-mobile-system]",
+    )) {
+      button.addEventListener("click", () => {
+        this.actions.toggleSystem(
+          button.dataset.mobileSystem as keyof AircraftSystems,
+        );
+      });
+    }
     element("parking-brake-button").addEventListener(
       "click",
       this.actions.toggleParkingBrake,
     );
-    element("flaps-button").addEventListener("click", () => this.actions.adjustFlaps(1));
-    element("mobile-flaps").addEventListener("click", () => this.actions.adjustFlaps(1));
+    element("mobile-parking-brake").addEventListener(
+      "click",
+      this.actions.toggleParkingBrake,
+    );
+    element("flaps-button").addEventListener("click", (event) => {
+      this.actions.adjustFlaps((event as MouseEvent).shiftKey ? -1 : 1);
+    });
+    element("mobile-flaps-down").addEventListener(
+      "click",
+      () => this.actions.adjustFlaps(1),
+    );
+    element("mobile-flaps-up").addEventListener(
+      "click",
+      () => this.actions.adjustFlaps(-1),
+    );
     element("gear-button").addEventListener("click", this.actions.toggleGear);
     element("mobile-gear").addEventListener("click", this.actions.toggleGear);
     element("reverse-button").addEventListener("click", this.actions.toggleReverse);
+    element("mobile-reverse").addEventListener("click", this.actions.toggleReverse);
     element("autopilot-button").addEventListener("click", this.actions.toggleAutopilot);
     element<HTMLInputElement>("throttle-input").addEventListener("input", (event) => {
       this.actions.setThrottle(Number((event.currentTarget as HTMLInputElement).value) / 100);
     });
+    element<HTMLInputElement>("mobile-throttle-input").addEventListener(
+      "input",
+      (event) => {
+        this.actions.setThrottle(
+          Number((event.currentTarget as HTMLInputElement).value) / 100,
+        );
+      },
+    );
 
     for (const button of document.querySelectorAll<HTMLButtonElement>("[data-ap]")) {
       button.addEventListener("click", () => {
@@ -465,9 +517,15 @@ export class Interface {
     element("tutorial-action").querySelector("b")!.textContent =
       tutorial.index === 0 ? "PRESS ENTER" : "COMPLETE THE HIGHLIGHTED ACTION";
 
-    this.highlightedTarget?.classList.remove("tutorial-target");
-    this.highlightedTarget = step.target ? document.querySelector(step.target) : null;
-    this.highlightedTarget?.classList.add("tutorial-target");
+    for (const target of this.highlightedTargets) {
+      target.classList.remove("tutorial-target");
+    }
+    this.highlightedTargets = step.target
+      ? [...document.querySelectorAll(step.target)]
+      : [];
+    for (const target of this.highlightedTargets) {
+      target.classList.add("tutorial-target");
+    }
   }
 
   private drawMap(snapshot: FlightSnapshot): void {
@@ -629,6 +687,11 @@ function element<T extends HTMLElement = HTMLElement>(id: string): T {
   const found = document.getElementById(id);
   if (!found) throw new Error(`Missing UI element #${id}`);
   return found as T;
+}
+
+function headingTick(degrees: number): string {
+  const tens = Math.round(wrapDegrees(degrees) / 10) % 36;
+  return tens.toString().padStart(2, "0");
 }
 
 export function headingErrorToRunway(snapshot: FlightSnapshot): number {

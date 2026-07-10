@@ -46,7 +46,7 @@ export const AIRCRAFT: Record<AircraftId, AircraftSpec> = {
     yawResponse: 1.2,
     maxSafeSinkMps: 3,
     hardLandingMps: 6,
-    cockpitPosition: [-0.38, 0.62, -1.65],
+    cockpitPosition: [-0.27, 0.28, -1.55],
     cameraFov: 72,
   },
   learjet: {
@@ -87,7 +87,7 @@ export const AIRCRAFT: Record<AircraftId, AircraftSpec> = {
     yawResponse: 0.8,
     maxSafeSinkMps: 2.5,
     hardLandingMps: 5,
-    cockpitPosition: [-0.48, 1.05, -5.55],
+    cockpitPosition: [-0.38, 0.55, -5.55],
     cameraFov: 69,
   },
   max9: {
@@ -128,7 +128,7 @@ export const AIRCRAFT: Record<AircraftId, AircraftSpec> = {
     yawResponse: 0.48,
     maxSafeSinkMps: 2.2,
     hardLandingMps: 4.5,
-    cockpitPosition: [-0.62, 1.85, -15.2],
+    cockpitPosition: [-0.58, 1.05, -15.2],
     cameraFov: 66,
   },
 };

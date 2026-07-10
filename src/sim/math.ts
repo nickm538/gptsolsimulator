@@ -85,5 +85,10 @@ export function terrainHeight(x: number, z: number): number {
   const airportDistance = Math.max(Math.abs(x) - 2_600, Math.abs(z) - 2_800);
   const blend = smoothstep(0, 2_400, airportDistance);
   const hills = Math.max(0, fbm2(x, z) * 190 + 65);
-  return hills * blend - smoothstep(4_500, 8_000, -z) * 18;
+  const approachCorridor =
+    Math.abs(z) < 6_800 ? smoothstep(420, 1_250, Math.abs(x)) : 1;
+  return (
+    hills * blend * approachCorridor -
+    smoothstep(4_500, 8_000, -z) * 18
+  );
 }

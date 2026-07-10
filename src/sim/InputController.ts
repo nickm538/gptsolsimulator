@@ -8,6 +8,8 @@ export interface InputActions {
   onGear(): void;
   onFlaps(delta: number): void;
   onAutopilot(): void;
+  onReverse(): void;
+  onParkingBrake(): void;
   onInteract(): void;
 }
 
@@ -39,6 +41,10 @@ export class InputController {
     window.removeEventListener("gamepaddisconnected", this.onGamepadDisconnected);
   }
 
+  reset(): void {
+    this.clear();
+  }
+
   update(dt: number): void {
     const keyboardRoll =
       (this.pressed.has("KeyD") || this.pressed.has("ArrowRight") ? 1 : 0) -
@@ -53,18 +59,22 @@ export class InputController {
     let roll = Math.abs(this.touchRoll) > 0.02 ? this.touchRoll : keyboardRoll;
     let pitch = Math.abs(this.touchPitch) > 0.02 ? this.touchPitch : keyboardPitch;
     let yaw = Math.abs(this.touchYaw) > 0.02 ? this.touchYaw : keyboardYaw;
+    let gamepadBrake = 0;
 
     if (this.gamepadConnected) {
       const gamepad = navigator.getGamepads().find(Boolean);
       if (gamepad) {
-        roll = this.shapeAxis(gamepad.axes[0] ?? 0);
-        pitch = this.shapeAxis(gamepad.axes[1] ?? 0);
-        yaw = this.shapeAxis(gamepad.axes[2] ?? 0);
+        const gamepadRoll = this.shapeAxis(gamepad.axes[0] ?? 0);
+        const gamepadPitch = this.shapeAxis(gamepad.axes[1] ?? 0);
+        const gamepadYaw = this.shapeAxis(gamepad.axes[2] ?? 0);
+        if (Math.abs(gamepadRoll) > 0.02) roll = gamepadRoll;
+        if (Math.abs(gamepadPitch) > 0.02) pitch = gamepadPitch;
+        if (Math.abs(gamepadYaw) > 0.02) yaw = gamepadYaw;
         const throttleAxis = gamepad.axes[3];
         if (typeof throttleAxis === "number" && Math.abs(throttleAxis) > 0.08) {
           this.controls.throttle = clamp((1 - throttleAxis) * 0.5, 0, 1);
         }
-        if (gamepad.buttons[0]?.pressed) this.touchBrake = 1;
+        gamepadBrake = gamepad.buttons[0]?.pressed ? 1 : 0;
       }
     }
 
@@ -73,7 +83,7 @@ export class InputController {
     this.controls.yaw = damp(this.controls.yaw, clamp(yaw, -1, 1), 7, dt);
     this.controls.brake = Math.max(
       this.touchBrake,
-      this.pressed.has("Space") ? 1 : 0,
+      this.pressed.has("Space") ? 1 : gamepadBrake,
     );
 
     const throttleRate = this.pressed.has("ShiftLeft") || this.pressed.has("ShiftRight")
@@ -121,11 +131,13 @@ export class InputController {
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
-    if (
-      event.target instanceof HTMLInputElement ||
-      event.target instanceof HTMLSelectElement ||
-      event.target instanceof HTMLTextAreaElement
-    ) {
+    const focusedControl =
+      event.target instanceof Element
+        ? event.target.closest(
+            "button, a, input, select, textarea, [role='button']",
+          )
+        : null;
+    if (focusedControl) {
       return;
     }
     if (
@@ -135,7 +147,6 @@ export class InputController {
         "ArrowLeft",
         "ArrowRight",
         "Space",
-        "Tab",
       ].includes(event.code)
     ) {
       event.preventDefault();
@@ -161,6 +172,12 @@ export class InputController {
         break;
       case "KeyP":
         this.actions.onAutopilot();
+        break;
+      case "KeyR":
+        this.actions.onReverse();
+        break;
+      case "KeyB":
+        this.actions.onParkingBrake();
         break;
       case "Enter":
         this.actions.onInteract();
