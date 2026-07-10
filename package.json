@@ -1,0 +1,39 @@
+{
+  "name": "aerovia-flight-simulator",
+  "version": "1.0.0",
+  "description": "A polished browser-based international airport flight simulator",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nickm538/gptsolsimulator.git"
+  },
+  "keywords": [
+    "flight-simulator",
+    "threejs",
+    "typescript",
+    "webgl"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nickm538/gptsolsimulator/issues"
+  },
+  "homepage": "https://github.com/nickm538/gptsolsimulator#readme",
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
+  }
+}

@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#071117" />
+    <meta
+      name="description"
+      content="Aerovia — a detailed browser-based international airport flight simulator."
+    />
+    <title>Aerovia Flight Simulator</title>
+  </head>
+  <body>
+    <main id="app">
+      <canvas id="sim-canvas" aria-label="Aerovia 3D flight simulator"></canvas>
+
+      <section id="loading-screen" class="loading-screen" aria-live="polite">
+        <div class="loading-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+        <p class="eyebrow">AEROVIA SIMULATION CORE</p>
+        <h1>Preparing flight deck</h1>
+        <div class="loading-track"><i id="loading-progress"></i></div>
+        <p id="loading-status" class="muted">Calibrating flight dynamics…</p>
+      </section>
+
+      <section id="preflight-screen" class="screen preflight-screen is-hidden">
+        <header class="site-header">
+          <a class="brand" href="#" aria-label="Aerovia home">
+            <span class="brand-wing" aria-hidden="true"></span>
+            <span>AEROVIA</span>
+            <small>FLIGHT SIMULATOR</small>
+          </a>
+          <div class="header-meta">
+            <span class="live-dot"></span>
+            <span>KAUR LIVE</span>
+            <span class="header-divider"></span>
+            <span id="local-clock">04:32 UTC</span>
+          </div>
+        </header>
+
+        <div class="preflight-layout">
+          <section class="hero-copy">
+            <p class="eyebrow">AURELIA INTERNATIONAL · GATE C12</p>
+            <h1>Flight begins<br /><em>before takeoff.</em></h1>
+            <p class="hero-description">
+              Choose your aircraft, tune the conditions, and command every phase
+              from gate start to a precision landing.
+            </p>
+
+            <div class="hero-aircraft" aria-hidden="true">
+              <div class="orbit-ring orbit-ring-one"></div>
+              <div class="orbit-ring orbit-ring-two"></div>
+              <div class="aircraft-glyph">
+                <span class="glyph-fuselage"></span>
+                <span class="glyph-wing"></span>
+                <span class="glyph-tail"></span>
+              </div>
+              <div class="hero-label hero-label-top">
+                <b id="hero-aircraft-code">C172</b>
+                <span>AIRFRAME</span>
+              </div>
+              <div class="hero-label hero-label-bottom">
+                <b id="hero-range">640 NM</b>
+                <span>RANGE</span>
+              </div>
+            </div>
+
+            <div class="weather-strip">
+              <div>
+                <span>FIELD ELEV.</span>
+                <strong>318 FT</strong>
+              </div>
+              <div>
+                <span>WIND</span>
+                <strong id="hero-wind">270° / 05 KT</strong>
+              </div>
+              <div>
+                <span>VISIBILITY</span>
+                <strong id="hero-visibility">10+ KM</strong>
+              </div>
+              <div>
+                <span>QNH</span>
+                <strong>1016 HPA</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="config-panel" aria-label="Flight configuration">
+            <div class="config-heading">
+              <div>
+                <p class="eyebrow">FLIGHT CONFIGURATION</p>
+                <h2>Build your departure</h2>
+              </div>
+              <span class="config-count">01 / 03</span>
+            </div>
+
+            <div class="config-scroll">
+              <fieldset class="config-group">
+                <legend>
+                  <span>01</span>
+                  Select airframe
+                </legend>
+                <div id="aircraft-picker" class="aircraft-picker">
+                  <button class="aircraft-card is-active" data-aircraft="cessna" type="button">
+                    <span class="aircraft-icon prop-icon" aria-hidden="true"></span>
+                    <span class="aircraft-card-copy">
+                      <small>Cessna</small>
+                      <b>172 Skyhawk</b>
+                      <em>TRAINER</em>
+                    </span>
+                    <span class="selected-check">✓</span>
+                  </button>
+                  <button class="aircraft-card" data-aircraft="learjet" type="button">
+                    <span class="aircraft-icon jet-icon" aria-hidden="true"></span>
+                    <span class="aircraft-card-copy">
+                      <small>Bombardier</small>
+                      <b>Learjet 45</b>
+                      <em>BUSINESS JET</em>
+                    </span>
+                    <span class="selected-check">✓</span>
+                  </button>
+                  <button class="aircraft-card" data-aircraft="max9" type="button">
+                    <span class="aircraft-icon airliner-icon" aria-hidden="true"></span>
+                    <span class="aircraft-card-copy">
+                      <small>Boeing</small>
+                      <b>737 MAX 9</b>
+                      <em>AIRLINER</em>
+                    </span>
+                    <span class="selected-check">✓</span>
+                  </button>
+                </div>
+                <div class="aircraft-spec-row">
+                  <div><span>CRUISE</span><b id="spec-cruise">122 KT</b></div>
+                  <div><span>CEILING</span><b id="spec-ceiling">14,000 FT</b></div>
+                  <div><span>APPROACH</span><b id="spec-approach">65 KT</b></div>
+                  <p id="aircraft-tagline">Forgiving handling. Unfiltered flying.</p>
+                </div>
+              </fieldset>
+
+              <fieldset class="config-group compact-group">
+                <legend><span>02</span> Paint & loading</legend>
+                <div class="paint-row">
+                  <div>
+                    <label>LIVERY</label>
+                    <div id="livery-picker" class="swatches">
+                      <button class="swatch is-active" data-livery="0" style="--swatch:#20d6c7" aria-label="Aurora livery"></button>
+                      <button class="swatch" data-livery="1" style="--swatch:#f2a93b" aria-label="Midnight livery"></button>
+                      <button class="swatch" data-livery="2" style="--swatch:#e44753" aria-label="Cardinal livery"></button>
+                      <button class="swatch" data-livery="3" style="--swatch:#3f72f2" aria-label="Pacific livery"></button>
+                      <button class="swatch" data-livery="4" style="--swatch:#d7c59e" aria-label="Executive livery"></button>
+                    </div>
+                  </div>
+                  <label class="field">
+                    <span>CALLSIGN</span>
+                    <input id="callsign-input" type="text" value="AER 271" maxlength="12" spellcheck="false" />
+                  </label>
+                </div>
+                <div class="range-row">
+                  <label>
+                    <span>FUEL <output id="fuel-output">72%</output></span>
+                    <input id="fuel-input" type="range" min="10" max="100" value="72" />
+                  </label>
+                  <label>
+                    <span>PAYLOAD <output id="payload-output">54%</output></span>
+                    <input id="payload-input" type="range" min="0" max="100" value="54" />
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset class="config-group">
+                <legend><span>03</span> Conditions</legend>
+                <div id="weather-picker" class="weather-picker">
+                  <button type="button" class="weather-card is-active" data-weather="clear">
+                    <i class="weather-icon sun-icon"></i>
+                    <span><b>Clear</b><small>CAVOK · 05 KT</small></span>
+                  </button>
+                  <button type="button" class="weather-card" data-weather="golden">
+                    <i class="weather-icon golden-icon"></i>
+                    <span><b>Golden</b><small>Calm · sunset</small></span>
+                  </button>
+                  <button type="button" class="weather-card" data-weather="overcast">
+                    <i class="weather-icon cloud-icon"></i>
+                    <span><b>Crosswind</b><small>Gusting 18 KT</small></span>
+                  </button>
+                  <button type="button" class="weather-card" data-weather="storm">
+                    <i class="weather-icon storm-icon"></i>
+                    <span><b>Storm</b><small>Heavy rain</small></span>
+                  </button>
+                </div>
+                <div class="option-grid">
+                  <div>
+                    <label>TIME</label>
+                    <div id="time-picker" class="segmented">
+                      <button data-time="day" class="is-active" type="button">DAY</button>
+                      <button data-time="sunset" type="button">DUSK</button>
+                      <button data-time="night" type="button">NIGHT</button>
+                    </div>
+                  </div>
+                  <div>
+                    <label>GRAPHICS</label>
+                    <select id="quality-select">
+                      <option value="auto">Auto / Ultra</option>
+                      <option value="high">High fidelity</option>
+                      <option value="balanced">Balanced</option>
+                      <option value="mobile">Mobile</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="toggle-grid">
+                  <label class="toggle">
+                    <input id="tutorial-toggle" type="checkbox" checked />
+                    <span></span>
+                    <b>Guided tutorial</b>
+                    <small>Interactive checklist and route</small>
+                  </label>
+                  <label class="toggle">
+                    <input id="assist-toggle" type="checkbox" checked />
+                    <span></span>
+                    <b>Flight assists</b>
+                    <small>Auto-rudder and gentle stability</small>
+                  </label>
+                  <label class="toggle">
+                    <input id="ready-toggle" type="checkbox" />
+                    <span></span>
+                    <b>Ready to taxi</b>
+                    <small>Skip engine start sequence</small>
+                  </label>
+                </div>
+              </fieldset>
+            </div>
+
+            <footer class="config-footer">
+              <div class="departure-summary">
+                <span>DEPARTURE</span>
+                <strong>GATE C12 → RWY 36L</strong>
+                <small id="summary-aircraft">Cessna 172 · Clear skies</small>
+              </div>
+              <button id="review-flight-button" class="primary-button" type="button">
+                <span>REVIEW FLIGHT</span>
+                <i>→</i>
+              </button>
+            </footer>
+          </section>
+        </div>
+
+        <footer class="site-footer">
+          <span>PHYSICS · 120 HZ</span>
+          <span>WORLD · PROCEDURAL</span>
+          <span>INPUT · KEYBOARD / TOUCH / GAMEPAD</span>
+          <span class="build-tag">SIM BUILD 1.0</span>
+        </footer>
+      </section>
+
+      <section id="briefing-modal" class="modal-layer is-hidden" aria-modal="true" role="dialog">
+        <div class="briefing-card">
+          <div class="briefing-visual">
+            <div class="route-diagram" aria-hidden="true">
+              <span class="route-terminal">TERMINAL C</span>
+              <span class="route-gate">C12</span>
+              <span class="route-line route-line-one"></span>
+              <span class="route-line route-line-two"></span>
+              <span class="route-runway">36L</span>
+              <i class="route-plane">✈</i>
+            </div>
+            <p class="eyebrow">KAUR / AURELIA INTL</p>
+            <h2>Departure briefing</h2>
+            <p>Taxi via Charlie and Alpha. Hold short runway 36L. Initial climb 3,000 feet.</p>
+            <div class="atis-card">
+              <b>ATIS INFORMATION KILO</b>
+              <span id="briefing-weather">WIND 270 AT 05 · VISIBILITY 10+</span>
+              <span>QNH 1016 · RUNWAY 36L IN USE</span>
+            </div>
+          </div>
+          <div class="briefing-content">
+            <button id="close-briefing" class="icon-button close-button" type="button" aria-label="Close briefing">×</button>
+            <p class="eyebrow">PILOT BRIEFING</p>
+            <h3 id="briefing-title">Cessna 172 Skyhawk</h3>
+            <p id="briefing-subtitle" class="muted">Gate C12 · Callsign AER 271</p>
+            <ol class="briefing-steps">
+              <li>
+                <span>01</span>
+                <div><b>Start & configure</b><small>Power the flight deck, start the engine, and set lights.</small></div>
+              </li>
+              <li>
+                <span>02</span>
+                <div><b>Taxi to runway 36L</b><small>Use Q / E to steer. Keep ground speed below 20 kt.</small></div>
+              </li>
+              <li>
+                <span>03</span>
+                <div><b>Take off and fly</b><small>Advance throttle, rotate at <em id="briefing-vr">55 kt</em>, then climb.</small></div>
+              </li>
+              <li>
+                <span>04</span>
+                <div><b>Return and land</b><small>Use the map and PAPI lights to stabilize your approach.</small></div>
+              </li>
+            </ol>
+            <div class="control-primer">
+              <span><kbd>W S</kbd><small>PITCH</small></span>
+              <span><kbd>A D</kbd><small>ROLL</small></span>
+              <span><kbd>Q E</kbd><small>RUDDER</small></span>
+              <span><kbd>⇧ CTRL</kbd><small>THROTTLE</small></span>
+              <span><kbd>SPACE</kbd><small>BRAKES</small></span>
+              <span><kbd>C</kbd><small>CAMERA</small></span>
+            </div>
+            <button id="begin-flight-button" class="primary-button large" type="button">
+              <span>BEGIN AT GATE C12</span><i>→</i>
+            </button>
+            <p class="fine-print">All performance data is simulation-only. Not for real-world navigation or training.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="flight-ui" class="flight-ui is-hidden">
+        <header class="flight-topbar">
+          <div class="flight-brand">
+            <span class="brand-wing"></span>
+            <b>AEROVIA</b>
+            <small id="flight-callsign">AER 271</small>
+          </div>
+          <div class="flight-status">
+            <div><span>POSITION</span><b id="position-label">GATE C12</b></div>
+            <div><span>RADIO</span><b>GROUND 121.900</b></div>
+            <div><span>WIND</span><b id="flight-wind">270 / 05</b></div>
+          </div>
+          <div class="topbar-actions">
+            <button id="sound-button" type="button" aria-label="Toggle sound">SOUND <b>ON</b></button>
+            <button id="pause-button" type="button" aria-label="Pause simulation">Ⅱ</button>
+          </div>
+        </header>
+
+        <div id="master-warning" class="master-warning is-hidden" role="alert">
+          <i></i><span>MASTER WARNING</span><b id="warning-text">STALL</b>
+        </div>
+
+        <aside id="tutorial-card" class="tutorial-card">
+          <div class="tutorial-progress"><i id="tutorial-progress"></i></div>
+          <div class="tutorial-heading">
+            <span id="tutorial-eyebrow">LESSON 01 · FLIGHT DECK</span>
+            <button id="collapse-tutorial" type="button" aria-label="Collapse tutorial">−</button>
+          </div>
+          <h2 id="tutorial-title">Welcome aboard</h2>
+          <p id="tutorial-body">Look around the cockpit, then begin the startup checklist.</p>
+          <div id="tutorial-action" class="tutorial-action">
+            <span class="pulse-ring"></span>
+            <b>PRESS ENTER</b>
+            <small>or tap Continue</small>
+          </div>
+          <div class="tutorial-buttons">
+            <button id="tutorial-hint" type="button">SHOW HINT</button>
+            <button id="tutorial-continue" class="accent-button" type="button">CONTINUE</button>
+          </div>
+          <p id="tutorial-hint-text" class="tutorial-hint is-hidden"></p>
+        </aside>
+
+        <section class="instrument-stack" aria-label="Primary flight instruments">
+          <div class="pfd-shell">
+            <div class="instrument-title"><span>PFD</span><b id="pfd-power">OFF</b></div>
+            <div id="pfd-screen" class="pfd-screen is-off">
+              <div class="attitude-window">
+                <div id="attitude-horizon" class="attitude-horizon">
+                  <div class="sky-half"></div>
+                  <div class="ground-half"></div>
+                  <div class="horizon-line"></div>
+                  <div class="pitch-ladder">
+                    <i class="pitch-20">20</i>
+                    <i class="pitch-10">10</i>
+                    <i class="pitch-n10">10</i>
+                    <i class="pitch-n20">20</i>
+                  </div>
+                </div>
+                <div class="aircraft-reference"><i></i><span></span><i></i></div>
+                <div class="bank-scale">· · <b>▲</b> · ·</div>
+              </div>
+              <div class="speed-tape">
+                <small>IAS</small>
+                <b id="pfd-speed">000</b>
+                <span>KT</span>
+              </div>
+              <div class="altitude-tape">
+                <small>ALT</small>
+                <b id="pfd-altitude">00320</b>
+                <span>FT</span>
+              </div>
+              <div class="vertical-speed"><i id="vs-indicator"></i><b id="pfd-vs">0</b></div>
+              <div class="heading-tape">
+                <span>33</span><span>34</span><b id="pfd-heading">360</b><span>01</span><span>02</span>
+              </div>
+              <div class="flight-mode-annunciator">
+                <b id="fma-mode">MANUAL</b>
+                <span id="fma-altitude">ALT ---</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="engine-panel">
+            <div class="instrument-title"><span>ENGINE</span><b id="engine-state">OFF</b></div>
+            <div class="engine-gauges">
+              <div class="gauge">
+                <svg viewBox="0 0 100 60" aria-hidden="true">
+                  <path d="M12 52 A40 40 0 0 1 88 52" />
+                  <path id="n1-arc" class="value-arc" d="M12 52 A40 40 0 0 1 88 52" />
+                </svg>
+                <b id="engine-n1">0</b><span id="engine-label">RPM %</span>
+              </div>
+              <div class="engine-data">
+                <span>FUEL FLOW <b id="fuel-flow">0</b></span>
+                <span>OIL PRESS <b id="oil-pressure">0</b></span>
+                <span>FUEL <b id="fuel-remaining">72%</b></span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="center-hud" aria-hidden="true">
+          <div class="flight-path-marker"><i></i><span></span><i></i></div>
+          <div id="runway-guidance" class="runway-guidance">
+            <span></span><b>36L</b><span></span>
+          </div>
+        </div>
+
+        <aside class="telemetry-rail">
+          <div><span>GS</span><b id="ground-speed">0</b><small>KT</small></div>
+          <div><span>RA</span><b id="radio-altitude">0</b><small>FT</small></div>
+          <div><span>AOA</span><b id="aoa">0.0</b><small>°</small></div>
+          <div><span>LOAD</span><b id="g-force">1.0</b><small>G</small></div>
+        </aside>
+
+        <div class="camera-pill">
+          <button id="camera-button" type="button"><span>◉</span><b id="camera-label">COCKPIT</b><small>C</small></button>
+          <button id="map-button" type="button"><span>⌖</span><b>MAP</b><small>M</small></button>
+        </div>
+
+        <section id="cockpit-console" class="cockpit-console">
+          <div class="console-grip"></div>
+          <div class="switch-bank systems-bank">
+            <p>SYSTEMS</p>
+            <button class="system-switch" data-system="battery" type="button"><i></i><b>BAT</b><small>OFF</small></button>
+            <button class="system-switch" data-system="avionics" type="button"><i></i><b>AVIONICS</b><small>OFF</small></button>
+            <button class="system-switch" data-system="engineMaster" type="button"><i></i><b>ENGINE</b><small>OFF</small></button>
+          </div>
+          <div class="switch-bank lights-bank">
+            <p>EXTERIOR LIGHTS</p>
+            <button class="system-switch" data-system="beacon" type="button"><i></i><b>BEACON</b><small>OFF</small></button>
+            <button class="system-switch" data-system="navLights" type="button"><i></i><b>NAV</b><small>OFF</small></button>
+            <button class="system-switch" data-system="landingLights" type="button"><i></i><b>LANDING</b><small>OFF</small></button>
+          </div>
+          <div class="throttle-quadrant">
+            <div class="throttle-copy"><span>THROTTLE</span><b id="throttle-readout">0%</b></div>
+            <input id="throttle-input" type="range" min="0" max="100" value="0" orient="vertical" aria-label="Throttle" />
+            <div class="throttle-keys"><kbd>CTRL</kbd><span>—</span><kbd>SHIFT</kbd></div>
+          </div>
+          <div class="lever-bank">
+            <p>CONFIG</p>
+            <button id="parking-brake-button" class="lever-button is-active" type="button"><span>PARK</span><b>SET</b><small>SPACE</small></button>
+            <button id="flaps-button" class="lever-button" type="button"><span>FLAPS</span><b id="flaps-value">UP</b><small>F</small></button>
+            <button id="gear-button" class="lever-button is-active" type="button"><span>GEAR</span><b id="gear-value">DOWN</b><small>G</small></button>
+            <button id="reverse-button" class="lever-button" type="button"><span>REV</span><b id="reverse-value">OFF</b><small>R</small></button>
+          </div>
+          <div class="autopilot-bank">
+            <p>AUTOPILOT</p>
+            <button id="autopilot-button" class="ap-master" type="button"><i></i><span>AP</span><b>OFF</b></button>
+            <div class="ap-window">
+              <span>HDG <b id="ap-heading">090</b></span>
+              <button data-ap="heading-down">−</button><button data-ap="heading-up">+</button>
+              <span>ALT <b id="ap-altitude">02500</b></span>
+              <button data-ap="altitude-down">−</button><button data-ap="altitude-up">+</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="mobile-controls" class="mobile-controls">
+          <div id="touch-stick" class="touch-stick">
+            <span class="stick-ring"></span><i id="touch-knob"></i>
+            <small>PITCH / ROLL</small>
+          </div>
+          <div class="mobile-rudder">
+            <button data-rudder="-1" type="button">L</button>
+            <span>RUDDER</span>
+            <button data-rudder="1" type="button">R</button>
+          </div>
+          <div class="mobile-actions">
+            <button id="mobile-brake" type="button">BRAKE</button>
+            <button id="mobile-flaps" type="button">FLAPS</button>
+            <button id="mobile-gear" type="button">GEAR</button>
+            <button id="mobile-camera" type="button">VIEW</button>
+          </div>
+        </section>
+      </section>
+
+      <section id="map-overlay" class="map-overlay is-hidden">
+        <div class="map-card">
+          <header>
+            <div><p class="eyebrow">LIVE NAVIGATION</p><h2>KAUR Surface & Area</h2></div>
+            <button id="close-map" class="icon-button" type="button" aria-label="Close map">×</button>
+          </header>
+          <canvas id="map-canvas" width="900" height="620"></canvas>
+          <footer>
+            <div><i class="legend-aircraft"></i><span>YOUR AIRCRAFT</span></div>
+            <div><i class="legend-route"></i><span>TAXI ROUTE</span></div>
+            <div><i class="legend-runway"></i><span>ACTIVE RUNWAY 36L</span></div>
+            <span id="map-coordinates">N 00°00.000 · E 000°00.000</span>
+          </footer>
+        </div>
+      </section>
+
+      <section id="pause-overlay" class="modal-layer is-hidden" aria-modal="true" role="dialog">
+        <div class="pause-card">
+          <p class="eyebrow">SIMULATION PAUSED</p>
+          <h2>Flight controls held</h2>
+          <div class="pause-actions">
+            <button id="resume-button" class="primary-button" type="button">RESUME FLIGHT <i>→</i></button>
+            <button id="restart-gate-button" class="secondary-button" type="button">RESTART AT GATE</button>
+            <button id="retry-approach-button" class="secondary-button" type="button">LOAD FINAL APPROACH</button>
+            <button id="exit-button" class="text-button" type="button">RETURN TO FLIGHT SETUP</button>
+          </div>
+          <div class="pause-controls">
+            <span><kbd>W/S</kbd> PITCH</span><span><kbd>A/D</kbd> ROLL</span>
+            <span><kbd>Q/E</kbd> RUDDER</span><span><kbd>SHIFT/CTRL</kbd> THROTTLE</span>
+            <span><kbd>SPACE</kbd> BRAKE</span><span><kbd>ESC</kbd> RESUME</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="crash-overlay" class="crash-overlay is-hidden" role="dialog" aria-modal="true">
+        <div class="crash-stripe"></div>
+        <div class="crash-card">
+          <p class="eyebrow">FLIGHT TERMINATED</p>
+          <h2 id="crash-title">Aircraft damaged</h2>
+          <p id="crash-reason">EXCESSIVE TOUCHDOWN LOAD</p>
+          <div class="crash-data">
+            <div><span>IMPACT SPEED</span><b id="crash-speed">0 KT</b></div>
+            <div><span>VERTICAL RATE</span><b id="crash-vs">0 FPM</b></div>
+          </div>
+          <div class="crash-actions">
+            <button id="crash-retry-approach" class="primary-button" type="button">RETRY APPROACH <i>↻</i></button>
+            <button id="crash-restart" class="secondary-button" type="button">RESTART AT GATE</button>
+          </div>
+        </div>
+      </section>
+
+      <aside id="landing-toast" class="landing-toast is-hidden">
+        <div class="landing-score"><span id="landing-score">92</span><small>/100</small></div>
+        <div>
+          <p class="eyebrow">LANDING ANALYSIS</p>
+          <h3 id="landing-title">Butter landing</h3>
+          <div class="landing-metrics">
+            <span>VERTICAL <b id="landing-sink">−118 FPM</b></span>
+            <span>CENTERLINE <b id="landing-center">1.2 M</b></span>
+            <span>SPEED <b id="landing-speed">+2 KT</b></span>
+          </div>
+        </div>
+        <button id="close-landing" type="button" aria-label="Close landing report">×</button>
+      </aside>
+
+      <div id="screen-flash" class="screen-flash"></div>
+      <div class="screen-vignette" aria-hidden="true"></div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
