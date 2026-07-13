@@ -12,7 +12,6 @@ export default defineConfig({
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
     launchOptions: {
-      executablePath: "/usr/local/bin/google-chrome",
       args: [
         "--enable-webgl",
         "--ignore-gpu-blocklist",
