@@ -128,13 +128,14 @@ export function buildAirport(
     },
     dispose(): void {
       scene.remove(root);
+      const sharedMaterials = new Set([asphalt, taxiAsphalt, concrete, runwayWhite, taxiYellow]);
       root.traverse((object) => {
         if (object instanceof Mesh || object instanceof InstancedMesh) {
           object.geometry.dispose();
-          const materials = Array.isArray(object.material)
-            ? object.material
-            : [object.material];
-          for (const material of materials) material.dispose();
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          for (const material of materials) {
+            if (!sharedMaterials.has(material)) material.dispose();
+          }
         }
       });
     },
