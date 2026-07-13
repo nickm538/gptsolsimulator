@@ -941,6 +941,11 @@ input[type="range"]::-moz-range-thumb {
   opacity: 0;
 }
 
+.toggle input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
 .toggle > span {
   position: relative;
   grid-row: 1 / 3;
