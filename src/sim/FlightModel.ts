@@ -645,10 +645,7 @@ export class FlightModel {
       this.phase = "airborne";
     }
 
-    if (rho < 0) {
-      // Keeps the atmosphere argument deliberately consumed in strict builds.
-      this.velocity.y = 0;
-    }
+    void rho; // consumed to satisfy noUnusedParameters in strict builds
   }
 
   private applyTurbulence(dt: number, elapsed: number, airspeed: number): void {
