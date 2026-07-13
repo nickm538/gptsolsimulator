@@ -120,9 +120,8 @@ export class CameraController {
         targetPosition.copy(aircraftPosition).add(worldOffset);
         const follow = clampFollow(dt, speedKts);
         this.camera.position.lerp(targetPosition, follow);
-        targetLook
-          .copy(aircraftPosition)
-          .addScaledVector(new Vector3(0, 1, -1).applyQuaternion(root.quaternion), 3);
+        worldOffset.set(0, 1, -1).applyQuaternion(root.quaternion);
+        targetLook.copy(aircraftPosition).addScaledVector(worldOffset, 3);
         this.camera.lookAt(targetLook);
         break;
       }
